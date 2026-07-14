@@ -22,6 +22,7 @@ def normalize_columns(df):
     df.columns = (
         pd.Index(df.columns)
         .astype(str)
+        .str.replace("\ufeff", "", regex=False)
         .str.strip()
         .str.lower()
         .str.normalize("NFKD")
@@ -89,7 +90,7 @@ def prepare_data(df):
         "amarelo": "Amarelo",
     }
 
-    df["categoria"] = np.nan
+    df["categoria"] = pd.Series(pd.NA, index=df.index, dtype="string")
     for col, category in category_map.items():
         df.loc[df["linha_valida"] & (df[col] == 1), "categoria"] = category
 
@@ -98,6 +99,7 @@ def prepare_data(df):
 
 def shannon_entropy(series):
     counts = series.value_counts()
+    counts = counts[counts > 0]
     if counts.sum() == 0:
         return np.nan
     probabilities = counts / counts.sum()
@@ -106,6 +108,7 @@ def shannon_entropy(series):
 
 def consensus(series):
     counts = series.value_counts()
+    counts = counts[counts > 0]
     if counts.sum() == 0:
         return np.nan
     return float(counts.max() / counts.sum())
@@ -198,6 +201,7 @@ def to_csv_bytes(df):
 
 
 st.title("🎨 Análise de categorização de cores")
+st.caption("Versão corrigida: 14/07/2026 – v3")
 st.caption(
     "Aplicativo ajustado ao formato do arquivo Dados.csv: um único arquivo, "
     "quatro indicadores binários de cor, duas tentativas e grupo informado em `fenotipo`."
@@ -285,7 +289,7 @@ with tab_overview:
                 "amarelo",
             ]
         ],
-        use_container_width=True,
+        width='stretch',
         height=420,
     )
 
@@ -347,7 +351,7 @@ with tab_distribution:
         height=680,
     )
     fig.update_yaxes(tickformat=".0%")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     metrics = (
         distribution_data.groupby(
@@ -364,7 +368,7 @@ with tab_distribution:
     )
 
     st.subheader("Categoria predominante, consenso e entropia")
-    st.dataframe(metrics, use_container_width=True, height=420)
+    st.dataframe(metrics, width='stretch', height=420)
 
     selected_group = st.radio(
         "Grupo exibido no mapa de calor",
@@ -395,7 +399,7 @@ with tab_distribution:
         },
         height=750,
     )
-    st.plotly_chart(fig_heat, use_container_width=True)
+    st.plotly_chart(fig_heat, width='stretch')
 
 with tab_repeatability:
     paired = valid_data.pivot_table(
@@ -416,7 +420,7 @@ with tab_repeatability:
             paired.groupby(["fenotipo", "participante"])
             .agg(
                 Número_de_peças=("peca", "size"),
-                Concordância_percentual=("Concordante", "mean"),
+                concordancia_percentual=("Concordante", "mean"),
             )
             .reset_index()
         )
@@ -445,17 +449,20 @@ with tab_repeatability:
             on=["fenotipo", "participante"],
             how="left",
         )
-        repeatability["Concordância percentual"] *= 100
+        repeatability["concordancia_percentual"] *= 100
 
         st.subheader("Repetibilidade por participante")
-        st.dataframe(repeatability, use_container_width=True)
+        repeatability_display = repeatability.rename(
+            columns={"concordancia_percentual": "Concordância percentual"}
+        )
+        st.dataframe(repeatability_display, width='stretch')
 
         summary = (
             repeatability.groupby("fenotipo")
             .agg(
                 Participantes=("participante", "nunique"),
-                Concordância_média_pct=("Concordância percentual", "mean"),
-                Concordância_mediana_pct=("Concordância percentual", "median"),
+                Concordância_média_pct=("concordancia_percentual", "mean"),
+                Concordância_mediana_pct=("concordancia_percentual", "median"),
                 Kappa_médio=("Kappa de Cohen", "mean"),
                 Kappa_mediano=("Kappa de Cohen", "median"),
             )
@@ -463,20 +470,20 @@ with tab_repeatability:
         )
 
         st.subheader("Resumo por grupo")
-        st.dataframe(summary, use_container_width=True)
+        st.dataframe(summary, width='stretch')
 
         fig_box = px.box(
             repeatability,
             x="fenotipo",
-            y="Concordância percentual",
+            y="concordancia_percentual",
             points="all",
             category_orders={"fenotipo": GROUP_ORDER},
             labels={
                 "fenotipo": "Fenótipo",
-                "Concordância percentual": "Concordância (%)",
+                "concordancia_percentual": "Concordância (%)",
             },
         )
-        st.plotly_chart(fig_box, use_container_width=True)
+        st.plotly_chart(fig_box, width='stretch')
 
         st.subheader("Matrizes de transição")
         column_1, column_2 = st.columns(2)
@@ -498,7 +505,7 @@ with tab_repeatability:
                 )
 
                 st.markdown(f"**{group.capitalize()}s**")
-                st.dataframe(matrix, use_container_width=True)
+                st.dataframe(matrix, width='stretch')
 
         piece_repeatability = (
             paired.groupby(["fenotipo", "peca"])["Concordante"]
@@ -516,7 +523,7 @@ with tab_repeatability:
         st.subheader("Concordância por peça")
         st.dataframe(
             piece_repeatability,
-            use_container_width=True,
+            width='stretch',
             height=420,
         )
 
@@ -546,7 +553,7 @@ with tab_groups:
     else:
         st.dataframe(
             comparison_results.sort_values("p ajustado (BH)"),
-            use_container_width=True,
+            width='stretch',
             height=480,
         )
 
@@ -567,7 +574,7 @@ with tab_groups:
         )
         fig_p.add_hline(y=0.05, line_dash="dash")
         fig_p.update_yaxes(type="log")
-        st.plotly_chart(fig_p, use_container_width=True)
+        st.plotly_chart(fig_p, width='stretch')
 
     st.info(
         "Como cada participante responde a muitas peças e duas tentativas, "
@@ -601,7 +608,7 @@ with tab_quality:
                     "soma_indicadores",
                 ]
             ],
-            use_container_width=True,
+            width='stretch',
         )
 
     st.subheader("Número de peças por participante e tentativa")
@@ -617,7 +624,7 @@ with tab_quality:
         st.warning(
             "Há participantes ou tentativas com número de linhas diferente de 85."
         )
-        st.dataframe(abnormal_counts, use_container_width=True)
+        st.dataframe(abnormal_counts, width='stretch')
 
     st.subheader("Consistência do fenótipo")
     inconsistent_phenotypes = phenotype_consistency[
@@ -632,7 +639,7 @@ with tab_quality:
         st.warning(
             "Alguns participantes aparecem associados a mais de um fenótipo."
         )
-        st.dataframe(inconsistent_phenotypes, use_container_width=True)
+        st.dataframe(inconsistent_phenotypes, width='stretch')
 
 with tab_downloads:
     st.subheader("Exportar resultados")
@@ -688,7 +695,7 @@ with tab_downloads:
     if "repeatability" in locals():
         st.download_button(
             "Baixar repetibilidade individual",
-            data=to_csv_bytes(repeatability),
+            data=to_csv_bytes(repeatability_display),
             file_name="repetibilidade_individual.csv",
             mime="text/csv",
         )
