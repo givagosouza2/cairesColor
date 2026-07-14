@@ -89,13 +89,9 @@ def prepare_data(df):
         "amarelo": "Amarelo",
     }
 
-    # Inicializa explicitamente como texto para evitar erro de atribuição
-    # de categorias como "Vermelho" em uma coluna inferida como float.
-    df["categoria"] = pd.Series(pd.NA, index=df.index, dtype="string")
-
+    df["categoria"] = np.nan
     for col, category in category_map.items():
-        mask = df["linha_valida"] & (df[col] == 1)
-        df.loc[mask, "categoria"] = category
+        df.loc[df["linha_valida"] & (df[col] == 1), "categoria"] = category
 
     return df
 
