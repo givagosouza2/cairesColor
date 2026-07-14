@@ -13,6 +13,12 @@ st.set_page_config(
 
 COLOR_COLUMNS = ["vermelho", "azul", "verde", "amarelo"]
 CATEGORY_ORDER = ["Vermelho", "Azul", "Verde", "Amarelo"]
+CATEGORY_COLORS = {
+    "Vermelho": "red",
+    "Azul": "blue",
+    "Verde": "green",
+    "Amarelo": "yellow",
+}
 GROUP_ORDER = ["tricromata", "dicromata"]
 
 
@@ -201,7 +207,7 @@ def to_csv_bytes(df):
 
 
 st.title("🎨 Análise de categorização de cores")
-st.caption("Versão corrigida: 14/07/2026 – v3")
+st.caption("Versão corrigida: 14/07/2026 – v4 (cores das categorias)")
 st.caption(
     "Aplicativo ajustado ao formato do arquivo Dados.csv: um único arquivo, "
     "quatro indicadores binários de cor, duas tentativas e grupo informado em `fenotipo`."
@@ -337,6 +343,7 @@ with tab_distribution:
         x="peca",
         y="Proporção",
         color="categoria",
+        color_discrete_map=CATEGORY_COLORS,
         facet_row="fenotipo",
         category_orders={
             "categoria": CATEGORY_ORDER,
@@ -350,8 +357,13 @@ with tab_distribution:
         },
         height=680,
     )
+    for trace in fig.data:
+        category = str(trace.name).split(",")[0].strip()
+        if category in CATEGORY_COLORS:
+            trace.update(marker_color=CATEGORY_COLORS[category])
+
     fig.update_yaxes(tickformat=".0%")
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, width="stretch")
 
     metrics = (
         distribution_data.groupby(
